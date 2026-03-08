@@ -329,6 +329,7 @@
   <div class="hint-text">
     DISTANCE FROM CAMERA → PITCH<br>
     LEFT ←→ RIGHT → VOLUME<br>
+    OPEN / CLOSE HAND → CUTOFF<br>
     REQUIRES CAMERA ACCESS
   </div>
 </div>
@@ -372,8 +373,8 @@
       <div class="meter-bar"><div class="meter-fill" id="vol-meter"></div></div>
     </div>
     <div class="meter">
-      <div class="meter-label"><span>HAND</span><span id="hand-size-val">--</span></div>
-      <div class="meter-bar"><div class="meter-fill" id="hand-meter"></div></div>
+      <div class="meter-label"><span>CUTOFF</span><span id="cutoff-val">--</span></div>
+      <div class="meter-bar"><div class="meter-fill" id="cutoff-meter"></div></div>
     </div>
   </div>
 </div>
@@ -437,7 +438,10 @@ function createReverb(convolver) {
 }
 
 function buildOscillators() {
-  oscillators.forEach(o => { try { o.stop(); } catch(e){} });
+  oscillators.forEach(({ osc, gain: g }) => {
+    try { g.disconnect(); } catch(e){}
+    try { osc.stop(); osc.disconnect(); } catch(e){}
+  });
   oscillators = [];
 
   const configs = getOscConfig(currentWave);
@@ -555,21 +559,52 @@ function onResults(results) {
     // Larger span = closer = lower pitch
     const normalizedSize = Math.min(Math.max(handSpan / (W * 0.6), 0), 1);
     const pitchNorm = 1 - normalizedSize; // invert: far away = small = high pitch
-    targetFreq = 80 + Math.pow(pitchNorm, 1.5) * 1400; // 80-1480 Hz
+    // Musical range: B1 (61.7Hz) to B6 (1975Hz) — ~5 octaves
+    // Use exponential mapping so each octave feels equal in travel
+    const minNote = 35;  // B1
+    const maxNote = 95;  // B6
+    const midiNote = minNote + pitchNorm * (maxNote - minNote);
+    targetFreq = 440 * Math.pow(2, (midiNote - 69) / 12);
 
     // ── Volume from horizontal position
     const palmX = pts[0].x;
     const volNorm = Math.min(Math.max(palmX / W, 0), 1);
     targetVol = volNorm;
 
+    // ── Finger curl → filter cutoff
+    // For each finger, measure distance from fingertip to base knuckle
+    // normalized by hand span. Open = extended = bright. Closed = curled = dark.
+    const fingerTips  = [4, 8, 12, 16, 20];
+    const fingerBases = [2, 5,  9, 13, 17];
+    let totalExtension = 0;
+    fingerTips.forEach((tip, i) => {
+      const base = fingerBases[i];
+      const dx = pts[tip].x - pts[base].x;
+      const dy = pts[tip].y - pts[base].y;
+      const dist = Math.sqrt(dx*dx + dy*dy);
+      totalExtension += dist;
+    });
+    const avgExtension = totalExtension / fingerTips.length;
+    // Normalize: fully extended ~= handSpan * 0.5, fully curled ~= handSpan * 0.1
+    const curlNorm = Math.min(Math.max((avgExtension / handSpan - 0.1) / 0.4, 0), 1);
+    // Map to filter: open (1) = 8000Hz bright, closed (0) = 200Hz dark
+    const cutoffFreq = 200 + Math.pow(curlNorm, 2) * 7800;
+    filterNode.frequency.setTargetAtTime(cutoffFreq, audioCtx.currentTime, 0.05);
+
     // Update meters
     document.getElementById('pitch-meter').style.width = (pitchNorm * 100) + '%';
     document.getElementById('vol-meter').style.width = (volNorm * 100) + '%';
-    document.getElementById('hand-meter').style.width = (normalizedSize * 100) + '%';
+    document.getElementById('cutoff-meter').style.width = (curlNorm * 100) + '%';
     document.getElementById('pitch-val').textContent = Math.round(targetFreq) + 'Hz';
     document.getElementById('vol-val').textContent = Math.round(volNorm * 100) + '%';
-    document.getElementById('hand-size-val').textContent = Math.round(normalizedSize * 100) + '%';
+    document.getElementById('cutoff-val').textContent = Math.round(cutoffFreq) + 'Hz';
     document.getElementById('freq-display').textContent = Math.round(targetFreq) + ' Hz';
+
+    // Color the cutoff meter amber when closing
+    document.getElementById('cutoff-meter').style.background =
+      curlNorm > 0.6 ? 'linear-gradient(90deg, #aa7700, #ffaa00)' :
+      curlNorm > 0.3 ? 'linear-gradient(90deg, #557700, #aaff00)' :
+                       'linear-gradient(90deg, #005544, #00ffaa)';
 
     // Draw skeleton
     ctx2d.strokeStyle = 'rgba(0,255,136,0.35)';
@@ -623,10 +658,11 @@ function onResults(results) {
 
     document.getElementById('pitch-meter').style.width = '0%';
     document.getElementById('vol-meter').style.width = '0%';
-    document.getElementById('hand-meter').style.width = '0%';
+    document.getElementById('cutoff-meter').style.width = '0%';
     document.getElementById('pitch-val').textContent = '--';
     document.getElementById('vol-val').textContent = '--';
-    document.getElementById('hand-size-val').textContent = '--';
+    document.getElementById('cutoff-val').textContent = '--';
+    if (audioCtx) filterNode.frequency.setTargetAtTime(4000, audioCtx.currentTime, 0.1);
   }
 }
 
