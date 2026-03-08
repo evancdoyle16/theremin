@@ -362,12 +362,20 @@ function setWave(btn) {
 
 function audioLoop() {
   if (!audioCtx) { requestAnimationFrame(audioLoop); return; }
-  const smooth = 0.07;
-  currentFreq += (targetFreq - currentFreq) * smooth;
-  currentVol  += (targetVol  - currentVol)  * smooth;
+  // Autotune: snap instantly to target note, no glide
+  if (autotuneOn) {
+    currentFreq = targetFreq;
+  } else {
+    currentFreq += (targetFreq - currentFreq) * 0.07;
+  }
+  currentVol += (targetVol - currentVol) * 0.07;
   const now = audioCtx.currentTime;
   oscillators.forEach(({ osc, ratio }) => {
-    osc.frequency.setTargetAtTime(currentFreq * ratio, now, 0.025);
+    if (autotuneOn) {
+      osc.frequency.setValueAtTime(currentFreq * ratio, now);
+    } else {
+      osc.frequency.setTargetAtTime(currentFreq * ratio, now, 0.025);
+    }
   });
   if (fmMod) {
     fmMod.frequency.setTargetAtTime(currentFreq * 2.0, now, 0.025);
