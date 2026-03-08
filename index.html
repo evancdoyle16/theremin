@@ -8,333 +8,130 @@
 <title>CAM·THEREMIN</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&display=swap');
-
   :root {
-    --green: #00ff88;
-    --green-dim: #00aa55;
-    --green-glow: rgba(0,255,136,0.4);
-    --amber: #ffaa00;
-    --red: #ff3344;
-    --bg: #050a07;
-    --panel: #0a1410;
-    --border: #1a3025;
-    --text: #00ff88;
+    --green: #00ff88; --green-dim: #00aa55; --green-glow: rgba(0,255,136,0.4);
+    --amber: #ffaa00; --amber-glow: rgba(255,170,0,0.4);
+    --red: #ff3344; --bg: #050a07; --panel: #0a1410; --border: #1a3025;
   }
-
-  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
   body {
-    background: var(--bg);
-    color: var(--text);
+    background: var(--bg); color: var(--green);
     font-family: 'Share Tech Mono', monospace;
-    height: 100dvh;
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
+    height: 100dvh; overflow: hidden;
+    display: flex; flex-direction: column;
   }
-
-  /* Scanline overlay */
   body::before {
-    content: '';
-    position: fixed;
-    inset: 0;
-    background: repeating-linear-gradient(
-      0deg,
-      transparent,
-      transparent 2px,
-      rgba(0,0,0,0.08) 2px,
-      rgba(0,0,0,0.08) 4px
-    );
-    pointer-events: none;
-    z-index: 1000;
+    content:''; position:fixed; inset:0; pointer-events:none; z-index:1000;
+    background: repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.07) 2px,rgba(0,0,0,0.07) 4px);
   }
-
-  /* CRT vignette */
   body::after {
-    content: '';
-    position: fixed;
-    inset: 0;
-    background: radial-gradient(ellipse at center, transparent 60%, rgba(0,0,0,0.7) 100%);
-    pointer-events: none;
-    z-index: 999;
+    content:''; position:fixed; inset:0; pointer-events:none; z-index:999;
+    background: radial-gradient(ellipse at center, transparent 55%, rgba(0,0,0,0.75) 100%);
   }
 
   header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 8px 14px;
-    border-bottom: 1px solid var(--border);
-    background: var(--panel);
-    flex-shrink: 0;
-    position: relative;
-    z-index: 10;
+    display:flex; align-items:center; justify-content:space-between;
+    padding:7px 14px; border-bottom:1px solid var(--border);
+    background:var(--panel); flex-shrink:0; position:relative; z-index:10;
   }
+  .logo { font-family:'Orbitron',sans-serif; font-weight:900; font-size:15px; letter-spacing:4px;
+    color:var(--green); text-shadow:0 0 10px var(--green-glow),0 0 20px var(--green-glow); }
+  .status-row { display:flex; gap:10px; align-items:center; font-size:9px; letter-spacing:1px; }
+  .status-dot { width:7px;height:7px;border-radius:50%;background:var(--red);box-shadow:0 0 6px var(--red);transition:all .3s; }
+  .status-dot.active { background:var(--green);box-shadow:0 0 8px var(--green-glow); }
+  .freq-display { font-family:'Orbitron',sans-serif; font-size:13px; color:var(--amber);
+    text-shadow:0 0 8px var(--amber-glow); min-width:90px; text-align:right; }
 
-  .logo {
-    font-family: 'Orbitron', sans-serif;
-    font-weight: 900;
-    font-size: 16px;
-    letter-spacing: 4px;
-    color: var(--green);
-    text-shadow: 0 0 10px var(--green-glow), 0 0 20px var(--green-glow);
-  }
+  .viewport { position:relative; flex:1; overflow:hidden; }
+  #video { position:absolute;inset:0;width:100%;height:100%;object-fit:cover;
+    transform:scaleX(-1);opacity:0.5;filter:saturate(0) brightness(0.65) contrast(1.2); }
+  #overlay { position:absolute;inset:0;width:100%;height:100%; }
+  #waveform { position:absolute;bottom:0;left:0;right:0;height:65px;opacity:.85; }
+  #no-hand-msg { position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+    font-size:10px;letter-spacing:3px;color:var(--green-dim);opacity:0;transition:opacity .5s;
+    text-align:center;pointer-events:none; }
+  #no-hand-msg.visible { opacity:.55; }
+  #note-display { position:absolute;top:12px;left:50%;transform:translateX(-50%);
+    font-family:'Orbitron',sans-serif;font-size:22px;font-weight:700;color:var(--amber);
+    text-shadow:0 0 12px var(--amber-glow),0 0 24px var(--amber-glow);
+    opacity:0;transition:opacity .1s;pointer-events:none;letter-spacing:3px; }
+  #note-display.visible { opacity:1; }
 
-  .status-row {
-    display: flex;
-    gap: 12px;
-    align-items: center;
-    font-size: 10px;
-    letter-spacing: 1px;
-  }
+  .controls { background:var(--panel);border-top:1px solid var(--border);
+    padding:9px 12px 12px;flex-shrink:0;position:relative;z-index:10; }
+  .section-label { font-size:8px;letter-spacing:3px;color:var(--green-dim);margin-bottom:6px; }
 
-  .status-dot {
-    width: 7px; height: 7px;
-    border-radius: 50%;
-    background: var(--red);
-    box-shadow: 0 0 6px var(--red);
-    transition: all 0.3s;
-  }
-  .status-dot.active { background: var(--green); box-shadow: 0 0 8px var(--green-glow); }
-
-  .freq-display {
-    font-family: 'Orbitron', sans-serif;
-    font-size: 13px;
-    color: var(--amber);
-    text-shadow: 0 0 8px rgba(255,170,0,0.6);
-    min-width: 80px;
-    text-align: right;
-  }
-
-  /* Camera + canvas stack */
-  .viewport {
-    position: relative;
-    flex: 1;
-    overflow: hidden;
-  }
-
-  #video {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    transform: scaleX(-1);
-    opacity: 0.55;
-    filter: saturate(0) brightness(0.7) contrast(1.2);
-  }
-
-  #overlay {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-  }
-
-  /* Waveform visualizer */
-  #waveform {
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    height: 70px;
-    opacity: 0.8;
-  }
-
-  /* Controls panel */
-  .controls {
-    background: var(--panel);
-    border-top: 1px solid var(--border);
-    padding: 10px 14px 14px;
-    flex-shrink: 0;
-    position: relative;
-    z-index: 10;
-  }
-
-  .controls-label {
-    font-size: 9px;
-    letter-spacing: 3px;
-    color: var(--green-dim);
-    margin-bottom: 8px;
-  }
-
-  .sound-grid {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 6px;
-  }
-
+  .sound-grid { display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin-bottom:8px; }
   .sound-btn {
-    background: transparent;
-    border: 1px solid var(--border);
-    color: var(--green-dim);
-    font-family: 'Share Tech Mono', monospace;
-    font-size: 9px;
-    letter-spacing: 1px;
-    padding: 7px 4px;
-    cursor: pointer;
-    text-transform: uppercase;
-    transition: all 0.15s;
-    position: relative;
-    overflow: hidden;
+    background:transparent;border:1px solid var(--border);color:var(--green-dim);
+    font-family:'Share Tech Mono',monospace;font-size:8px;letter-spacing:.5px;
+    padding:6px 2px;cursor:pointer;text-transform:uppercase;transition:all .15s;
+    position:relative;overflow:hidden;line-height:1.3;
   }
+  .sound-btn.active { border-color:var(--green);color:var(--green);
+    box-shadow:0 0 8px var(--green-glow),inset 0 0 8px rgba(0,255,136,0.08); }
 
-  .sound-btn::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background: var(--green);
-    opacity: 0;
-    transition: opacity 0.15s;
+  .autotune-row { display:flex;align-items:center;gap:8px;margin-bottom:7px;flex-wrap:wrap; }
+  .toggle-btn {
+    background:transparent;border:1px solid var(--border);color:var(--green-dim);
+    font-family:'Share Tech Mono',monospace;font-size:8px;letter-spacing:1px;
+    padding:5px 10px;cursor:pointer;text-transform:uppercase;transition:all .15s;white-space:nowrap;
   }
-
-  .sound-btn.active {
-    border-color: var(--green);
-    color: var(--green);
-    box-shadow: 0 0 10px var(--green-glow), inset 0 0 10px rgba(0,255,136,0.1);
+  .toggle-btn.active { border-color:var(--amber);color:var(--amber);
+    box-shadow:0 0 8px var(--amber-glow),inset 0 0 8px rgba(255,170,0,0.08); }
+  .key-selectors { display:flex;gap:5px;align-items:center;opacity:.3;transition:opacity .2s;pointer-events:none; }
+  .key-selectors.enabled { opacity:1;pointer-events:auto; }
+  .key-btn {
+    background:transparent;border:1px solid var(--border);color:var(--green-dim);
+    font-family:'Share Tech Mono',monospace;font-size:8px;
+    padding:4px 6px;cursor:pointer;transition:all .15s;min-width:22px;text-align:center;
   }
-
-  .sound-btn:active::before { opacity: 0.15; }
-
-  .meters {
-    display: flex;
-    gap: 10px;
-    margin-top: 10px;
+  .key-btn.active { border-color:var(--amber);color:var(--amber);box-shadow:0 0 6px var(--amber-glow); }
+  .mode-btn {
+    background:transparent;border:1px solid var(--border);color:var(--green-dim);
+    font-family:'Share Tech Mono',monospace;font-size:8px;letter-spacing:1px;
+    padding:4px 8px;cursor:pointer;transition:all .15s;
   }
+  .mode-btn.active { border-color:var(--amber);color:var(--amber);box-shadow:0 0 6px var(--amber-glow); }
 
-  .meter {
-    flex: 1;
-  }
+  .meters { display:flex;gap:8px; }
+  .meter { flex:1; }
+  .meter-label { font-size:7px;letter-spacing:1.5px;color:var(--green-dim);margin-bottom:3px;
+    display:flex;justify-content:space-between; }
+  .meter-bar { height:3px;background:var(--border);overflow:hidden; }
+  .meter-fill { height:100%;width:0%;transition:width .08s;
+    background:linear-gradient(90deg,var(--green-dim),var(--green));box-shadow:0 0 4px var(--green-glow); }
+  #cutoff-meter { background:linear-gradient(90deg,#aa6600,var(--amber));box-shadow:0 0 4px var(--amber-glow); }
 
-  .meter-label {
-    font-size: 8px;
-    letter-spacing: 2px;
-    color: var(--green-dim);
-    margin-bottom: 3px;
-    display: flex;
-    justify-content: space-between;
-  }
-
-  .meter-bar {
-    height: 4px;
-    background: var(--border);
-    position: relative;
-    overflow: hidden;
-  }
-
-  .meter-fill {
-    height: 100%;
-    background: linear-gradient(90deg, var(--green-dim), var(--green));
-    box-shadow: 0 0 6px var(--green-glow);
-    width: 0%;
-    transition: width 0.08s;
-  }
-
-  /* Start overlay */
-  #start-screen {
-    position: fixed;
-    inset: 0;
-    background: var(--bg);
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    z-index: 500;
-    gap: 20px;
-  }
-
-  .start-logo {
-    font-family: 'Orbitron', sans-serif;
-    font-weight: 900;
-    font-size: clamp(28px, 8vw, 48px);
-    letter-spacing: 8px;
-    color: var(--green);
-    text-shadow: 0 0 20px var(--green-glow), 0 0 40px var(--green-glow);
-    animation: pulse 2s ease-in-out infinite;
-  }
-
-  @keyframes pulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.7; }
-  }
-
-  .start-sub {
-    font-size: 11px;
-    letter-spacing: 3px;
-    color: var(--green-dim);
-    text-align: center;
-    line-height: 1.8;
-  }
-
-  .start-btn {
-    background: transparent;
-    border: 1px solid var(--green);
-    color: var(--green);
-    font-family: 'Orbitron', sans-serif;
-    font-size: 12px;
-    font-weight: 700;
-    letter-spacing: 4px;
-    padding: 14px 32px;
-    cursor: pointer;
-    text-transform: uppercase;
-    box-shadow: 0 0 20px var(--green-glow);
-    transition: all 0.2s;
-    margin-top: 10px;
-  }
-
-  .start-btn:active {
-    background: rgba(0,255,136,0.1);
-    box-shadow: 0 0 30px var(--green-glow);
-  }
-
-  .hint-text {
-    font-size: 10px;
-    color: var(--green-dim);
-    text-align: center;
-    letter-spacing: 1px;
-    line-height: 1.7;
-    max-width: 280px;
-    opacity: 0.7;
-  }
-
-  /* Hand guide lines */
-  .crosshair {
-    position: absolute;
-    pointer-events: none;
-  }
-
-  #no-hand-msg {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    font-size: 11px;
-    letter-spacing: 3px;
-    color: var(--green-dim);
-    opacity: 0;
-    transition: opacity 0.5s;
-    text-align: center;
-    pointer-events: none;
-  }
-  #no-hand-msg.visible { opacity: 0.6; }
+  #start-screen { position:fixed;inset:0;background:var(--bg);display:flex;flex-direction:column;
+    align-items:center;justify-content:center;z-index:500;gap:18px; }
+  .start-logo { font-family:'Orbitron',sans-serif;font-weight:900;font-size:clamp(26px,8vw,46px);
+    letter-spacing:8px;color:var(--green);text-shadow:0 0 20px var(--green-glow),0 0 40px var(--green-glow);
+    animation:pulse 2s ease-in-out infinite; }
+  @keyframes pulse { 0%,100%{opacity:1}50%{opacity:.65} }
+  .start-sub { font-size:10px;letter-spacing:3px;color:var(--green-dim);text-align:center;line-height:2; }
+  .start-btn { background:transparent;border:1px solid var(--green);color:var(--green);
+    font-family:'Orbitron',sans-serif;font-size:11px;font-weight:700;letter-spacing:4px;
+    padding:13px 30px;cursor:pointer;box-shadow:0 0 20px var(--green-glow);transition:all .2s;margin-top:8px; }
+  .start-btn:active { background:rgba(0,255,136,0.1); }
+  .hint-text { font-size:9px;color:var(--green-dim);text-align:center;letter-spacing:1px;
+    line-height:1.9;max-width:280px;opacity:.65; }
 </style>
 </head>
 <body>
 
-<!-- Start Screen -->
 <div id="start-screen">
   <div class="start-logo">CAM·THEREMIN</div>
-  <div class="start-sub">CAMERA-BASED INSTRUMENT<br>VERSION 1.0</div>
+  <div class="start-sub">CAMERA-BASED INSTRUMENT · V2</div>
   <button class="start-btn" onclick="startApp()">INITIALIZE</button>
   <div class="hint-text">
-    DISTANCE FROM CAMERA → PITCH<br>
-    LEFT ←→ RIGHT → VOLUME<br>
-    OPEN / CLOSE HAND → CUTOFF<br>
+    DISTANCE → PITCH &nbsp;|&nbsp; L/R → VOLUME<br>
+    OPEN / CLOSE HAND → FILTER CUTOFF<br>
+    AUTOTUNE SNAPS TO MUSICAL SCALE<br>
     REQUIRES CAMERA ACCESS
   </div>
 </div>
 
-<!-- Main UI -->
 <header>
   <div class="logo">CAM·THEREMIN</div>
   <div class="status-row">
@@ -349,20 +146,43 @@
   <canvas id="overlay"></canvas>
   <canvas id="waveform"></canvas>
   <div id="no-hand-msg">RAISE HAND TO PLAY</div>
+  <div id="note-display">C4</div>
 </div>
 
 <div class="controls">
-  <div class="controls-label">// OSCILLATOR</div>
+  <div class="section-label">// OSCILLATOR</div>
   <div class="sound-grid">
-    <button class="sound-btn active" data-wave="sine" onclick="setWave(this)">SINE</button>
-    <button class="sound-btn" data-wave="theremin" onclick="setWave(this)">THEREMIN</button>
-    <button class="sound-btn" data-wave="square" onclick="setWave(this)">SQUARE</button>
+    <button class="sound-btn active" data-wave="theremin" onclick="setWave(this)">THEREMIN</button>
+    <button class="sound-btn" data-wave="sine"     onclick="setWave(this)">SINE</button>
+    <button class="sound-btn" data-wave="moog"     onclick="setWave(this)">MOOG</button>
+    <button class="sound-btn" data-wave="juno"     onclick="setWave(this)">JUNO</button>
+    <button class="sound-btn" data-wave="dx7"      onclick="setWave(this)">DX7 FM</button>
+    <button class="sound-btn" data-wave="prophet"  onclick="setWave(this)">PROPHET</button>
+    <button class="sound-btn" data-wave="organ"    onclick="setWave(this)">ORGAN</button>
+    <button class="sound-btn" data-wave="pad"      onclick="setWave(this)">STR PAD</button>
+    <button class="sound-btn" data-wave="bass"     onclick="setWave(this)">BASS</button>
+    <button class="sound-btn" data-wave="flute"    onclick="setWave(this)">FLUTE</button>
+    <button class="sound-btn" data-wave="square"   onclick="setWave(this)">SQUARE</button>
     <button class="sound-btn" data-wave="sawtooth" onclick="setWave(this)">SAW</button>
-    <button class="sound-btn" data-wave="triangle" onclick="setWave(this)">TRIANGLE</button>
-    <button class="sound-btn" data-wave="organ" onclick="setWave(this)">ORGAN</button>
-    <button class="sound-btn" data-wave="pad" onclick="setWave(this)">PAD</button>
-    <button class="sound-btn" data-wave="bass" onclick="setWave(this)">BASS</button>
   </div>
+
+  <div class="section-label">// AUTOTUNE</div>
+  <div class="autotune-row">
+    <button class="toggle-btn" id="autotune-btn" onclick="toggleAutotune()">AUTO OFF</button>
+    <div class="key-selectors" id="key-selectors">
+      <div style="display:flex;gap:3px;" id="key-btns">
+        <button class="key-btn active" onclick="setKey(this,'C')">C</button>
+        <button class="key-btn" onclick="setKey(this,'D')">D</button>
+        <button class="key-btn" onclick="setKey(this,'E')">E</button>
+        <button class="key-btn" onclick="setKey(this,'F')">F</button>
+        <button class="key-btn" onclick="setKey(this,'G')">G</button>
+        <button class="key-btn" onclick="setKey(this,'A')">A</button>
+        <button class="key-btn" onclick="setKey(this,'B')">B</button>
+      </div>
+      <button class="mode-btn active" id="mode-btn" onclick="toggleMode()">MAJ</button>
+    </div>
+  </div>
+
   <div class="meters">
     <div class="meter">
       <div class="meter-label"><span>PITCH</span><span id="pitch-val">--</span></div>
@@ -379,112 +199,157 @@
   </div>
 </div>
 
-<!-- MediaPipe -->
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
-
 <script>
-// ─── Audio Engine ───────────────────────────────────────────────────────────
-let audioCtx = null;
-let masterGain, filterNode, reverbNode, oscillators = [];
-let currentWave = 'sine';
+// ═══════════════════════ AUDIO ENGINE ═══════════════════════
+let audioCtx, masterGain, preFilterGain, lpFilter, analyser, analyserData;
+let oscillators = [];
+let currentWave = 'theremin';
 let targetFreq = 220, currentFreq = 220;
 let targetVol = 0, currentVol = 0;
 let isPlaying = false;
-let analyser, analyserData;
+let fmMod = null, fmModGain = null;
 
 function initAudio() {
   audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 
+  preFilterGain = audioCtx.createGain();
+  preFilterGain.gain.value = 1.0;
+
+  // Resonant lowpass — starts fully open, hand curl sweeps it down
+  lpFilter = audioCtx.createBiquadFilter();
+  lpFilter.type = 'lowpass';
+  lpFilter.frequency.value = 20000;
+  lpFilter.Q.value = 2.0;
+
   masterGain = audioCtx.createGain();
   masterGain.gain.value = 0;
-
-  filterNode = audioCtx.createBiquadFilter();
-  filterNode.type = 'lowpass';
-  filterNode.frequency.value = 4000;
-  filterNode.Q.value = 1;
-
-  // Simple reverb using convolver
-  reverbNode = audioCtx.createConvolver();
-  const reverbGain = audioCtx.createGain();
-  reverbGain.gain.value = 0.2;
-  createReverb(reverbNode);
 
   analyser = audioCtx.createAnalyser();
   analyser.fftSize = 512;
   analyserData = new Float32Array(analyser.fftSize);
 
-  masterGain.connect(filterNode);
-  filterNode.connect(analyser);
-  filterNode.connect(reverbNode);
-  reverbNode.connect(reverbGain);
-  reverbGain.connect(audioCtx.destination);
+  const convolver = audioCtx.createConvolver();
+  const revGain = audioCtx.createGain();
+  revGain.gain.value = 0.16;
+  buildImpulse(convolver, 1.6);
+
+  // Chain: oscs → preFilterGain → lpFilter → masterGain → analyser → out
+  //                                                      ↘ convolver → revGain → out
+  preFilterGain.connect(lpFilter);
+  lpFilter.connect(masterGain);
+  masterGain.connect(analyser);
   analyser.connect(audioCtx.destination);
+  masterGain.connect(convolver);
+  convolver.connect(revGain);
+  revGain.connect(audioCtx.destination);
 
   buildOscillators();
 }
 
-function createReverb(convolver) {
+function buildImpulse(conv, dur) {
   const rate = audioCtx.sampleRate;
-  const length = rate * 1.5;
-  const buf = audioCtx.createBuffer(2, length, rate);
+  const len  = Math.floor(rate * dur);
+  const buf  = audioCtx.createBuffer(2, len, rate);
   for (let c = 0; c < 2; c++) {
     const d = buf.getChannelData(c);
-    for (let i = 0; i < length; i++) {
-      d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / length, 2.5);
-    }
+    for (let i = 0; i < len; i++)
+      d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 2.2);
   }
-  convolver.buffer = buf;
+  conv.buffer = buf;
 }
 
 function buildOscillators() {
-  oscillators.forEach(({ osc, gain: g }) => {
+  if (fmMod)     { try { fmMod.stop(); fmMod.disconnect(); } catch(e){} fmMod = null; }
+  if (fmModGain) { try { fmModGain.disconnect(); } catch(e){} fmModGain = null; }
+  oscillators.forEach(({ osc, g }) => {
     try { g.disconnect(); } catch(e){}
     try { osc.stop(); osc.disconnect(); } catch(e){}
   });
   oscillators = [];
 
-  const configs = getOscConfig(currentWave);
-  configs.forEach(cfg => {
+  getOscConfig(currentWave).forEach(cfg => {
     const osc = audioCtx.createOscillator();
-    const g = audioCtx.createGain();
+    const g   = audioCtx.createGain();
     osc.type = cfg.type;
     osc.frequency.value = currentFreq * cfg.ratio;
+    if (cfg.detune) osc.detune.value = cfg.detune;
     g.gain.value = cfg.gain;
     osc.connect(g);
-    g.connect(masterGain);
+    g.connect(preFilterGain);
     osc.start();
-    oscillators.push({ osc, gain: g, ratio: cfg.ratio, baseGain: cfg.gain });
+    oscillators.push({ osc, g, ratio: cfg.ratio });
   });
+
+  if (currentWave === 'dx7') {
+    fmMod = audioCtx.createOscillator();
+    fmModGain = audioCtx.createGain();
+    fmMod.type = 'sine';
+    fmMod.frequency.value = currentFreq * 2.0;
+    fmModGain.gain.value  = currentFreq * 2.5;
+    fmMod.connect(fmModGain);
+    if (oscillators[0]) fmModGain.connect(oscillators[0].osc.frequency);
+    fmMod.start();
+  }
 }
 
 function getOscConfig(wave) {
-  switch(wave) {
-    case 'sine':     return [{ type:'sine', ratio:1, gain:1 }];
+  switch (wave) {
     case 'theremin': return [
-      { type:'sine', ratio:1, gain:0.8 },
-      { type:'sine', ratio:2, gain:0.3 },
-      { type:'sine', ratio:3, gain:0.1 },
+      { type:'sine',     ratio:1,   gain:0.72 },
+      { type:'sine',     ratio:2,   gain:0.22 },
+      { type:'sine',     ratio:3,   gain:0.07 },
+      { type:'sine',     ratio:0.5, gain:0.05 },
     ];
-    case 'square':   return [{ type:'square', ratio:1, gain:0.5 }];
-    case 'sawtooth': return [{ type:'sawtooth', ratio:1, gain:0.5 }];
-    case 'triangle': return [{ type:'triangle', ratio:1, gain:0.8 }];
-    case 'organ':    return [
-      { type:'sine', ratio:1, gain:0.6 },
-      { type:'sine', ratio:2, gain:0.5 },
-      { type:'sine', ratio:4, gain:0.3 },
-      { type:'sine', ratio:6, gain:0.15 },
+    case 'sine':    return [{ type:'sine', ratio:1, gain:0.9 }];
+    case 'moog':    return [
+      { type:'sawtooth', ratio:1,   gain:0.38 },
+      { type:'sawtooth', ratio:1,   gain:0.38, detune:+8 },
+      { type:'sawtooth', ratio:1,   gain:0.30, detune:-8 },
+      { type:'square',   ratio:0.5, gain:0.22 },
     ];
-    case 'pad':      return [
-      { type:'sine', ratio:1, gain:0.5 },
-      { type:'sine', ratio:1.005, gain:0.5 },
-      { type:'triangle', ratio:2, gain:0.2 },
+    case 'juno':    return [
+      { type:'sawtooth', ratio:1,   gain:0.42 },
+      { type:'sawtooth', ratio:1,   gain:0.42, detune:+6 },
+      { type:'sawtooth', ratio:1,   gain:0.32, detune:-6 },
+      { type:'sine',     ratio:1,   gain:0.14, detune:+12 },
     ];
-    case 'bass':     return [
-      { type:'sawtooth', ratio:0.5, gain:0.6 },
-      { type:'sine', ratio:1, gain:0.4 },
+    case 'dx7':     return [{ type:'sine', ratio:1, gain:0.7 }]; // FM mod added separately
+    case 'prophet': return [
+      { type:'sawtooth', ratio:1,   gain:0.38 },
+      { type:'square',   ratio:1,   gain:0.28 },
+      { type:'sawtooth', ratio:0.5, gain:0.18 },
+      { type:'sawtooth', ratio:1,   gain:0.22, detune:+5 },
     ];
-    default:         return [{ type:'sine', ratio:1, gain:1 }];
+    case 'organ':   return [
+      { type:'sine', ratio:1,  gain:0.55 },
+      { type:'sine', ratio:2,  gain:0.50 },
+      { type:'sine', ratio:3,  gain:0.28 },
+      { type:'sine', ratio:4,  gain:0.18 },
+      { type:'sine', ratio:6,  gain:0.10 },
+      { type:'sine', ratio:8,  gain:0.06 },
+    ];
+    case 'pad':     return [
+      { type:'sawtooth', ratio:1,   gain:0.26 },
+      { type:'sawtooth', ratio:1,   gain:0.26, detune:+10 },
+      { type:'sawtooth', ratio:1,   gain:0.20, detune:-10 },
+      { type:'sawtooth', ratio:2,   gain:0.10, detune:+5  },
+      { type:'triangle', ratio:0.5, gain:0.16 },
+    ];
+    case 'bass':    return [
+      { type:'sawtooth', ratio:0.5, gain:0.52 },
+      { type:'square',   ratio:0.5, gain:0.28 },
+      { type:'sine',     ratio:1,   gain:0.22 },
+    ];
+    case 'flute':   return [
+      { type:'sine',     ratio:1,   gain:0.68 },
+      { type:'sine',     ratio:2,   gain:0.16 },
+      { type:'triangle', ratio:3,   gain:0.05 },
+    ];
+    case 'square':   return [{ type:'square',   ratio:1, gain:0.42 }];
+    case 'sawtooth': return [{ type:'sawtooth', ratio:1, gain:0.42 }];
+    default:         return [{ type:'sine',     ratio:1, gain:0.9  }];
   }
 }
 
@@ -495,249 +360,260 @@ function setWave(btn) {
   if (audioCtx) buildOscillators();
 }
 
-// Smooth audio update loop
 function audioLoop() {
   if (!audioCtx) { requestAnimationFrame(audioLoop); return; }
-
-  const smooth = 0.06;
+  const smooth = 0.07;
   currentFreq += (targetFreq - currentFreq) * smooth;
-  currentVol += (targetVol - currentVol) * smooth;
-
+  currentVol  += (targetVol  - currentVol)  * smooth;
+  const now = audioCtx.currentTime;
   oscillators.forEach(({ osc, ratio }) => {
-    osc.frequency.setTargetAtTime(currentFreq * ratio, audioCtx.currentTime, 0.03);
+    osc.frequency.setTargetAtTime(currentFreq * ratio, now, 0.025);
   });
-
-  const vol = isPlaying ? currentVol * 0.6 : 0;
-  masterGain.gain.setTargetAtTime(vol, audioCtx.currentTime, 0.05);
-
+  if (fmMod) {
+    fmMod.frequency.setTargetAtTime(currentFreq * 2.0, now, 0.025);
+    if (fmModGain) fmModGain.gain.setTargetAtTime(currentFreq * 2.5, now, 0.025);
+  }
+  masterGain.gain.setTargetAtTime(isPlaying ? currentVol * 0.55 : 0, now, 0.06);
   requestAnimationFrame(audioLoop);
 }
 
-// ─── Hand Tracking ──────────────────────────────────────────────────────────
-const video = document.getElementById('video');
-const overlayCanvas = document.getElementById('overlay');
-const ctx2d = overlayCanvas.getContext('2d');
-const wfCanvas = document.getElementById('waveform');
-const wfCtx = wfCanvas.getContext('2d');
+// ═══════════════════════ AUTOTUNE ═══════════════════════
+let autotuneOn  = false;
+let currentKey  = 'C';
+let currentMode = 'major';
+const KEY_ROOT  = { C:0, D:2, E:4, F:5, G:7, A:9, B:11 };
+const SCALES    = { major:[0,2,4,5,7,9,11], minor:[0,2,3,5,7,8,10] };
+const NOTE_NAMES = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
 
-let handVisible = false;
-let noHandTimer = null;
+function snapToScale(freq) {
+  const midi = 69 + 12 * Math.log2(freq / 440);
+  const root = KEY_ROOT[currentKey];
+  const intervals = SCALES[currentMode];
+  const midiRound = Math.round(midi);
+  let best = midiRound, bestDist = Infinity;
+  for (let offset = -24; offset <= 24; offset++) {
+    const cand = midiRound + offset;
+    const pc   = ((cand % 12) + 12) % 12;
+    const deg  = (pc - root + 12) % 12;
+    if (intervals.includes(deg)) {
+      const dist = Math.abs(midi - cand);
+      if (dist < bestDist) { bestDist = dist; best = cand; }
+    }
+  }
+  const octave = Math.floor(best / 12) - 1;
+  const name   = NOTE_NAMES[((best % 12) + 12) % 12];
+  showNote(name + octave);
+  return 440 * Math.pow(2, (best - 69) / 12);
+}
+
+let noteTimeout = null;
+function showNote(name) {
+  const el = document.getElementById('note-display');
+  el.textContent = name;
+  el.classList.add('visible');
+  clearTimeout(noteTimeout);
+  noteTimeout = setTimeout(() => el.classList.remove('visible'), 500);
+}
+
+function toggleAutotune() {
+  autotuneOn = !autotuneOn;
+  const btn = document.getElementById('autotune-btn');
+  btn.textContent = autotuneOn ? 'AUTO ON' : 'AUTO OFF';
+  btn.classList.toggle('active', autotuneOn);
+  document.getElementById('key-selectors').classList.toggle('enabled', autotuneOn);
+  if (!autotuneOn) document.getElementById('note-display').classList.remove('visible');
+}
+
+function setKey(btn, key) {
+  currentKey = key;
+  document.querySelectorAll('#key-btns .key-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+}
+
+function toggleMode() {
+  const btn = document.getElementById('mode-btn');
+  currentMode = currentMode === 'major' ? 'minor' : 'major';
+  btn.textContent = currentMode === 'major' ? 'MAJ' : 'MIN';
+  btn.classList.add('active');
+}
+
+// ═══════════════════════ HAND TRACKING ═══════════════════════
+const video   = document.getElementById('video');
+const overlay = document.getElementById('overlay');
+const ctx2d   = overlay.getContext('2d');
+const wfCvs   = document.getElementById('waveform');
+const wfCtx   = wfCvs.getContext('2d');
 
 const CONNECTIONS = [
-  [0,1],[1,2],[2,3],[3,4],
-  [0,5],[5,6],[6,7],[7,8],
-  [0,9],[9,10],[10,11],[11,12],
-  [0,13],[13,14],[14,15],[15,16],
-  [0,17],[17,18],[18,19],[19,20],
-  [5,9],[9,13],[13,17]
+  [0,1],[1,2],[2,3],[3,4],[0,5],[5,6],[6,7],[7,8],
+  [0,9],[9,10],[10,11],[11,12],[0,13],[13,14],[14,15],[15,16],
+  [0,17],[17,18],[18,19],[19,20],[5,9],[9,13],[13,17]
 ];
 
 function onResults(results) {
-  const W = overlayCanvas.width;
-  const H = overlayCanvas.height;
+  const W = overlay.width, H = overlay.height;
   ctx2d.clearRect(0, 0, W, H);
 
   if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
-    const lm = results.multiHandLandmarks[0];
+    const lm  = results.multiHandLandmarks[0];
+    const pts = lm.map(p => ({ x:(1-p.x)*W, y:p.y*H }));
 
-    handVisible = true;
     isPlaying = true;
     document.getElementById('hand-dot').classList.add('active');
     document.getElementById('hand-status').textContent = 'TRACKING';
     document.getElementById('no-hand-msg').classList.remove('visible');
 
-    // Mirror x since video is mirrored
-    const pts = lm.map(p => ({ x: (1 - p.x) * W, y: p.y * H, z: p.z }));
-
-    // ── Pitch from hand SIZE (spread of landmarks = proxy for distance)
-    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+    // Bounding box → hand size → pitch
+    let minX=Infinity,maxX=-Infinity,minY=Infinity,maxY=-Infinity;
     pts.forEach(p => {
-      minX = Math.min(minX, p.x); maxX = Math.max(maxX, p.x);
-      minY = Math.min(minY, p.y); maxY = Math.max(maxY, p.y);
+      minX=Math.min(minX,p.x); maxX=Math.max(maxX,p.x);
+      minY=Math.min(minY,p.y); maxY=Math.max(maxY,p.y);
     });
-    const handSpan = Math.max(maxX - minX, maxY - minY);
-    // Larger span = closer = lower pitch
-    const normalizedSize = Math.min(Math.max(handSpan / (W * 0.6), 0), 1);
-    const pitchNorm = 1 - normalizedSize; // invert: far away = small = high pitch
-    // Musical range: B1 (61.7Hz) to B6 (1975Hz) — ~5 octaves
-    // Use exponential mapping so each octave feels equal in travel
-    const minNote = 35;  // B1
-    const maxNote = 95;  // B6
-    const midiNote = minNote + pitchNorm * (maxNote - minNote);
-    targetFreq = 440 * Math.pow(2, (midiNote - 69) / 12);
+    const handSpan = Math.max(maxX-minX, maxY-minY);
+    const normSize = Math.min(Math.max(handSpan / (W * 0.65), 0), 1);
+    const pitchNorm = 1 - normSize;
+    const rawMidi = 35 + pitchNorm * 60; // B1 to B6
+    const rawFreq = 440 * Math.pow(2, (rawMidi - 69) / 12);
+    targetFreq = autotuneOn ? snapToScale(rawFreq) : rawFreq;
 
-    // ── Volume from horizontal position
-    const palmX = pts[0].x;
+    // Horizontal palm → volume
+    const palmX   = pts[0].x;
     const volNorm = Math.min(Math.max(palmX / W, 0), 1);
     targetVol = volNorm;
 
-    // ── Finger curl → filter cutoff
-    // For each finger, measure distance from fingertip to base knuckle
-    // normalized by hand span. Open = extended = bright. Closed = curled = dark.
-    const fingerTips  = [4, 8, 12, 16, 20];
-    const fingerBases = [2, 5,  9, 13, 17];
-    let totalExtension = 0;
-    fingerTips.forEach((tip, i) => {
-      const base = fingerBases[i];
-      const dx = pts[tip].x - pts[base].x;
-      const dy = pts[tip].y - pts[base].y;
-      const dist = Math.sqrt(dx*dx + dy*dy);
-      totalExtension += dist;
+    // Finger extension → filter cutoff
+    // Measure each fingertip (index–pinky) distance to its MCP knuckle
+    const tips = [8,12,16,20];
+    const mcps = [5, 9,13,17];
+    let extSum = 0;
+    tips.forEach((tip,i) => {
+      const dx = pts[tip].x - pts[mcps[i]].x;
+      const dy = pts[tip].y - pts[mcps[i]].y;
+      extSum += Math.sqrt(dx*dx + dy*dy);
     });
-    const avgExtension = totalExtension / fingerTips.length;
-    // Normalize: fully extended ~= handSpan * 0.5, fully curled ~= handSpan * 0.1
-    const curlNorm = Math.min(Math.max((avgExtension / handSpan - 0.1) / 0.4, 0), 1);
-    // Map to filter: open (1) = 8000Hz bright, closed (0) = 200Hz dark
-    const cutoffFreq = 200 + Math.pow(curlNorm, 2) * 7800;
-    filterNode.frequency.setTargetAtTime(cutoffFreq, audioCtx.currentTime, 0.05);
+    const avgExt  = extSum / tips.length;
+    // curlNorm: 0 = fist closed, 1 = hand fully open
+    const curlNorm = Math.min(Math.max((avgExt/handSpan - 0.15) / 0.55, 0), 1);
+    // Exponential sweep: closed=80Hz (very dark), open=18kHz (full bright)
+    const cutoffHz = 80 * Math.pow(18000/80, curlNorm);
+    lpFilter.frequency.setTargetAtTime(cutoffHz, audioCtx.currentTime, 0.04);
+    // Resonance rises as filter closes — classic Moog sweep feel
+    lpFilter.Q.setTargetAtTime(1 + (1-curlNorm)*10, audioCtx.currentTime, 0.04);
 
-    // Update meters
-    document.getElementById('pitch-meter').style.width = (pitchNorm * 100) + '%';
-    document.getElementById('vol-meter').style.width = (volNorm * 100) + '%';
-    document.getElementById('cutoff-meter').style.width = (curlNorm * 100) + '%';
-    document.getElementById('pitch-val').textContent = Math.round(targetFreq) + 'Hz';
-    document.getElementById('vol-val').textContent = Math.round(volNorm * 100) + '%';
-    document.getElementById('cutoff-val').textContent = Math.round(cutoffFreq) + 'Hz';
-    document.getElementById('freq-display').textContent = Math.round(targetFreq) + ' Hz';
-
-    // Color the cutoff meter amber when closing
-    document.getElementById('cutoff-meter').style.background =
-      curlNorm > 0.6 ? 'linear-gradient(90deg, #aa7700, #ffaa00)' :
-      curlNorm > 0.3 ? 'linear-gradient(90deg, #557700, #aaff00)' :
-                       'linear-gradient(90deg, #005544, #00ffaa)';
+    // Meters
+    const dispFreq = targetFreq;
+    document.getElementById('pitch-meter').style.width  = (pitchNorm*100)+'%';
+    document.getElementById('vol-meter').style.width    = (volNorm*100)+'%';
+    document.getElementById('cutoff-meter').style.width = (curlNorm*100)+'%';
+    document.getElementById('pitch-val').textContent    = Math.round(dispFreq)+'Hz';
+    document.getElementById('vol-val').textContent      = Math.round(volNorm*100)+'%';
+    document.getElementById('cutoff-val').textContent   = cutoffHz>999
+      ? (cutoffHz/1000).toFixed(1)+'k' : Math.round(cutoffHz)+'Hz';
+    document.getElementById('freq-display').textContent = Math.round(dispFreq)+' Hz';
 
     // Draw skeleton
-    ctx2d.strokeStyle = 'rgba(0,255,136,0.35)';
+    ctx2d.strokeStyle = 'rgba(0,255,136,0.28)';
     ctx2d.lineWidth = 1.5;
-    CONNECTIONS.forEach(([a, b]) => {
+    CONNECTIONS.forEach(([a,b]) => {
       ctx2d.beginPath();
-      ctx2d.moveTo(pts[a].x, pts[a].y);
-      ctx2d.lineTo(pts[b].x, pts[b].y);
+      ctx2d.moveTo(pts[a].x,pts[a].y);
+      ctx2d.lineTo(pts[b].x,pts[b].y);
       ctx2d.stroke();
     });
 
-    // Draw joints
-    pts.forEach((p, i) => {
-      const isKey = [0,4,8,12,16,20].includes(i);
+    // Draw joints — fingertips shift green→amber as hand closes
+    const tipSet = new Set([4,8,12,16,20]);
+    pts.forEach((p,i) => {
+      const isKey = tipSet.has(i) || i===0;
       ctx2d.beginPath();
-      ctx2d.arc(p.x, p.y, isKey ? 5 : 3, 0, Math.PI * 2);
-      ctx2d.fillStyle = isKey ? '#00ff88' : 'rgba(0,255,136,0.5)';
-      ctx2d.shadowBlur = isKey ? 12 : 6;
-      ctx2d.shadowColor = '#00ff88';
+      ctx2d.arc(p.x, p.y, isKey ? 5 : 2.5, 0, Math.PI*2);
+      ctx2d.shadowBlur = isKey ? 12 : 5;
+      if (tipSet.has(i)) {
+        const g = Math.round(255*(1-curlNorm*0.4));
+        ctx2d.fillStyle = `rgb(${Math.round(255*curlNorm)},${g},${Math.round(136*(1-curlNorm))})`;
+        ctx2d.shadowColor = curlNorm>0.5 ? '#ffaa00' : '#00ff88';
+      } else {
+        ctx2d.fillStyle = isKey ? '#00ff88' : 'rgba(0,255,136,0.42)';
+        ctx2d.shadowColor = '#00ff88';
+      }
       ctx2d.fill();
       ctx2d.shadowBlur = 0;
     });
 
-    // Draw palm circle
-    const cx = pts[0].x, cy = pts[0].y;
-    const r = handSpan * 0.28;
+    // Volume guide line
     ctx2d.beginPath();
-    ctx2d.arc(cx, cy, r, 0, Math.PI * 2);
-    ctx2d.strokeStyle = `rgba(0,255,136,${0.15 + volNorm * 0.3})`;
+    ctx2d.moveTo(0, pts[0].y); ctx2d.lineTo(palmX, pts[0].y);
+    ctx2d.strokeStyle = `rgba(255,170,0,${0.18+volNorm*0.52})`;
     ctx2d.lineWidth = 1;
-    ctx2d.stroke();
-
-    // Horizontal volume line
-    const lineY = cy;
-    ctx2d.beginPath();
-    ctx2d.moveTo(0, lineY);
-    ctx2d.lineTo(palmX, lineY);
-    ctx2d.strokeStyle = `rgba(255,170,0,${0.3 + volNorm * 0.4})`;
-    ctx2d.lineWidth = 1;
-    ctx2d.setLineDash([4, 6]);
+    ctx2d.setLineDash([4,7]);
     ctx2d.stroke();
     ctx2d.setLineDash([]);
 
   } else {
-    handVisible = false;
     isPlaying = false;
     document.getElementById('hand-dot').classList.remove('active');
     document.getElementById('hand-status').textContent = 'NO HAND';
     document.getElementById('freq-display').textContent = '--- Hz';
     document.getElementById('no-hand-msg').classList.add('visible');
-
-    document.getElementById('pitch-meter').style.width = '0%';
-    document.getElementById('vol-meter').style.width = '0%';
-    document.getElementById('cutoff-meter').style.width = '0%';
-    document.getElementById('pitch-val').textContent = '--';
-    document.getElementById('vol-val').textContent = '--';
-    document.getElementById('cutoff-val').textContent = '--';
-    if (audioCtx) filterNode.frequency.setTargetAtTime(4000, audioCtx.currentTime, 0.1);
+    ['pitch-meter','vol-meter','cutoff-meter'].forEach(id =>
+      document.getElementById(id).style.width = '0%');
+    ['pitch-val','vol-val','cutoff-val'].forEach(id =>
+      document.getElementById(id).textContent = '--');
+    if (audioCtx) {
+      lpFilter.frequency.setTargetAtTime(20000, audioCtx.currentTime, 0.15);
+      lpFilter.Q.setTargetAtTime(1, audioCtx.currentTime, 0.15);
+    }
   }
 }
 
-// ─── Waveform Visualizer ─────────────────────────────────────────────────────
+// ═══════════════════════ WAVEFORM ═══════════════════════
 function drawWaveform() {
-  const W = wfCanvas.width;
-  const H = wfCanvas.height;
-  wfCtx.clearRect(0, 0, W, H);
-
-  if (!analyser || !isPlaying) {
-    requestAnimationFrame(drawWaveform);
-    return;
+  const W = wfCvs.width, H = wfCvs.height;
+  wfCtx.clearRect(0,0,W,H);
+  if (analyser && isPlaying) {
+    analyser.getFloatTimeDomainData(analyserData);
+    wfCtx.beginPath();
+    wfCtx.strokeStyle = 'rgba(0,255,136,0.65)';
+    wfCtx.lineWidth = 1.5;
+    wfCtx.shadowBlur = 7;
+    wfCtx.shadowColor = '#00ff88';
+    const sw = W / analyserData.length;
+    let x = 0;
+    for (let i=0; i<analyserData.length; i++) {
+      const y = (analyserData[i]*0.5+0.5)*H;
+      i===0 ? wfCtx.moveTo(x,y) : wfCtx.lineTo(x,y);
+      x+=sw;
+    }
+    wfCtx.stroke();
+    wfCtx.shadowBlur=0;
   }
-
-  analyser.getFloatTimeDomainData(analyserData);
-
-  wfCtx.beginPath();
-  wfCtx.strokeStyle = 'rgba(0,255,136,0.7)';
-  wfCtx.lineWidth = 1.5;
-  wfCtx.shadowBlur = 8;
-  wfCtx.shadowColor = '#00ff88';
-
-  const sliceW = W / analyserData.length;
-  let x = 0;
-  for (let i = 0; i < analyserData.length; i++) {
-    const y = (analyserData[i] * 0.5 + 0.5) * H;
-    i === 0 ? wfCtx.moveTo(x, y) : wfCtx.lineTo(x, y);
-    x += sliceW;
-  }
-  wfCtx.stroke();
-  wfCtx.shadowBlur = 0;
-
   requestAnimationFrame(drawWaveform);
 }
 
-// ─── Resize ──────────────────────────────────────────────────────────────────
+// ═══════════════════════ INIT ═══════════════════════
 function resizeCanvases() {
   const vp = document.querySelector('.viewport');
-  overlayCanvas.width = vp.clientWidth;
-  overlayCanvas.height = vp.clientHeight;
-  wfCanvas.width = vp.clientWidth;
-  wfCanvas.height = 70;
+  overlay.width=vp.clientWidth; overlay.height=vp.clientHeight;
+  wfCvs.width=vp.clientWidth;   wfCvs.height=65;
 }
-
 window.addEventListener('resize', resizeCanvases);
 
-// ─── Init ────────────────────────────────────────────────────────────────────
 async function startApp() {
-  document.getElementById('start-screen').style.display = 'none';
+  document.getElementById('start-screen').style.display='none';
   resizeCanvases();
   initAudio();
   audioLoop();
   drawWaveform();
 
-  const hands = new Hands({
-    locateFile: file => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
-  });
-
-  hands.setOptions({
-    maxNumHands: 1,
-    modelComplexity: 1,
-    minDetectionConfidence: 0.7,
-    minTrackingConfidence: 0.6
-  });
-
+  const hands = new Hands({ locateFile: f=>`https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}` });
+  hands.setOptions({ maxNumHands:1, modelComplexity:1, minDetectionConfidence:0.72, minTrackingConfidence:0.65 });
   hands.onResults(onResults);
 
-  const camera = new Camera(video, {
-    onFrame: async () => { await hands.send({ image: video }); },
-    width: 640,
-    height: 480,
-    facingMode: 'user'
+  const cam = new Camera(video, {
+    onFrame: async () => { await hands.send({ image:video }); },
+    width:640, height:480, facingMode:'user'
   });
-
-  camera.start();
+  cam.start();
 }
 </script>
 </body>
