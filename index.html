@@ -535,8 +535,6 @@ async function startApp() {
   setTimeout(() => dbg.classList.remove('visible'), 3000);
 
   if (isChromeIOS) {
-
-  if (isChromeIOS) {
     // Chrome iOS: use getUserMedia directly
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false });
