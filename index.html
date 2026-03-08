@@ -531,40 +531,12 @@ async function startApp() {
   hands.setOptions({maxNumHands:1,modelComplexity:1,minDetectionConfidence:0.72,minTrackingConfidence:0.65});
   hands.onResults(onResults);
 
-  // Request camera - try front camera first, fall back to any camera
-  try {
-    let stream;
-    try {
-      stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'user' },
-        audio: false
-      });
-    } catch(e) {
-      // Fallback: just ask for any camera, no constraints
-      stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
-    }
-    video.srcObject = stream;
-    await new Promise(resolve => {
-      video.onloadeddata = resolve;
-      video.play();
-    });
-
-    let lastTime = 0;
-    async function processFrame(ts) {
-      if (ts - lastTime > 50) {
-        lastTime = ts;
-        if (video.readyState >= 2 && !video.paused) {
-          await hands.send({ image: video });
-        }
-      }
-      requestAnimationFrame(processFrame);
-    }
-    requestAnimationFrame(processFrame);
-  } catch(err) {
-    document.getElementById('no-hand-msg').textContent = 'CAMERA ACCESS DENIED';
-    document.getElementById('no-hand-msg').classList.add('visible');
-    console.error('Camera error:', err);
-  }
+  // Use MediaPipe Camera utility — most reliable on iOS Safari
+  const cam = new Camera(video, {
+    onFrame: async () => { await hands.send({ image: video }); },
+    width: 640, height: 480, facingMode: 'user'
+  });
+  cam.start();
 }
 </script>
 
