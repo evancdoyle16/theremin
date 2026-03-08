@@ -531,25 +531,31 @@ async function startApp() {
   hands.setOptions({maxNumHands:1,modelComplexity:1,minDetectionConfidence:0.72,minTrackingConfidence:0.65});
   hands.onResults(onResults);
 
-  // Use getUserMedia directly instead of MediaPipe Camera utility —
-  // more reliable across Chrome, Firefox, Safari, and Android Chrome
+  // Use getUserMedia directly instead of MediaPipe Camera utility
   try {
     const stream = await navigator.mediaDevices.getUserMedia({
       video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } },
       audio: false
     });
     video.srcObject = stream;
-    await video.play();
-    // Feed frames to MediaPipe manually
-    async function processFrame() {
-      if (video.readyState >= 2) {
-        await hands.send({ image: video });
+    await new Promise(resolve => {
+      video.onloadeddata = resolve;
+      video.play();
+    });
+
+    // Throttle to ~20fps so MediaPipe has time to process each frame
+    let lastTime = 0;
+    async function processFrame(ts) {
+      if (ts - lastTime > 50) { // 50ms = 20fps
+        lastTime = ts;
+        if (video.readyState >= 2 && !video.paused) {
+          await hands.send({ image: video });
+        }
       }
       requestAnimationFrame(processFrame);
     }
-    processFrame();
+    requestAnimationFrame(processFrame);
   } catch(err) {
-    // Fallback: show error on screen
     document.getElementById('no-hand-msg').textContent = 'CAMERA ACCESS DENIED';
     document.getElementById('no-hand-msg').classList.add('visible');
     console.error('Camera error:', err);
