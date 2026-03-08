@@ -18,7 +18,7 @@
   body {
     background: var(--bg); color: var(--green);
     font-family: 'Share Tech Mono', monospace;
-    height: 100dvh; overflow: hidden;
+    height: 100vh; height: 100dvh; overflow: hidden;
     display: flex; flex-direction: column;
   }
   body::before {
@@ -514,20 +514,46 @@ window.addEventListener('resize', resizeCanvases);
 async function startApp() {
   document.getElementById('start-screen').style.display='none';
   resizeCanvases();
+
+  // iOS speaker routing fix
   try {
-    const silent = new Audio('data:audio/mp3;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4LjI5LjEwMAAAAAAAAAAAAAAA//tQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAACAAABIADAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV//////////////////////////////////////////////////////////////////8AAAAATGF2YzU4LjU0AAAAAAAAAAAAAAAAJAAAAAAAAAAAASDs90hvAAAAAAAAAAAAAAAAAAAA//tQZAAP8AAAaQAAAAgAAA0gAAABAAABpAAAACAAADSAAAAETEFNRTMuMTAwVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV');
-    silent.volume=0.001; await silent.play();
+    const silent = new Audio();
+    silent.src = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=';
+    silent.volume = 0.001;
+    await silent.play();
   } catch(e) {}
-  initAudio(); audioLoop(); drawWaveform();
+
+  initAudio();
+  try { await audioCtx.resume(); } catch(e) {}
+  audioLoop(); drawWaveform();
 
   const hands = new Hands({locateFile:f=>`https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}`});
   hands.setOptions({maxNumHands:1,modelComplexity:1,minDetectionConfidence:0.72,minTrackingConfidence:0.65});
   hands.onResults(onResults);
-  const cam = new Camera(video, {
-    onFrame: async()=>{await hands.send({image:video});},
-    width:640, height:480, facingMode:'user'
-  });
-  cam.start();
+
+  // Use getUserMedia directly instead of MediaPipe Camera utility —
+  // more reliable across Chrome, Firefox, Safari, and Android Chrome
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } },
+      audio: false
+    });
+    video.srcObject = stream;
+    await video.play();
+    // Feed frames to MediaPipe manually
+    async function processFrame() {
+      if (video.readyState >= 2) {
+        await hands.send({ image: video });
+      }
+      requestAnimationFrame(processFrame);
+    }
+    processFrame();
+  } catch(err) {
+    // Fallback: show error on screen
+    document.getElementById('no-hand-msg').textContent = 'CAMERA ACCESS DENIED';
+    document.getElementById('no-hand-msg').classList.add('visible');
+    console.error('Camera error:', err);
+  }
 }
 </script>
 
