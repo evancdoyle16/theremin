@@ -531,12 +531,31 @@ async function startApp() {
   hands.setOptions({maxNumHands:1,modelComplexity:1,minDetectionConfidence:0.72,minTrackingConfidence:0.65});
   hands.onResults(onResults);
 
-  // Use MediaPipe Camera utility — most reliable on iOS Safari
-  const cam = new Camera(video, {
-    onFrame: async () => { await hands.send({ image: video }); },
-    width: 640, height: 480, facingMode: 'user'
-  });
-  cam.start();
+  // Try MediaPipe Camera utility first (best for Safari/iOS)
+  // Fall back to getUserMedia if it fails (Chrome iOS)
+  try {
+    const cam = new Camera(video, {
+      onFrame: async () => { await hands.send({ image: video }); },
+      width: 640, height: 480, facingMode: 'user'
+    });
+    await cam.start();
+  } catch(e) {
+    console.warn('MediaPipe Camera failed, falling back to getUserMedia:', e);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false });
+      video.srcObject = stream;
+      video.play();
+      let last = 0;
+      const tick = async (ts) => {
+        if (ts - last > 50 && video.readyState >= 2) { last = ts; await hands.send({ image: video }); }
+        requestAnimationFrame(tick);
+      };
+      requestAnimationFrame(tick);
+    } catch(err) {
+      document.getElementById('no-hand-msg').textContent = 'CAMERA ACCESS DENIED';
+      document.getElementById('no-hand-msg').classList.add('visible');
+    }
+  }
 }
 </script>
 
